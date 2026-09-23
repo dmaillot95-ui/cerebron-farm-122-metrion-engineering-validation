@@ -1,0 +1,35 @@
+name: F122 METRION Cold Canary
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "worker/specialist_canary.py"
+      - ".github/workflows/specialist-canary.yml"
+permissions:
+  contents: read
+jobs:
+  cold-canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python worker/specialist_canary.py
+      - name: Verify epistemic gate
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open("artifacts/specialist_canary.json"))
+          assert d["case"]["ai"]=="METRION"
+          assert d["case"]["case_id"]=="COLD-001"
+          assert d["decision"]["status"]=="PASS"
+          assert d["decision"]["allow_physical_validation"] is False
+          assert len(d["case"]["sha256"])==64
+          print("F122_COLD_CANARY_VERIFIED",d["case"]["sha256"])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f122-metrion-cold-canary
+          path: artifacts/specialist_canary.json
+          if-no-files-found: error
+          retention-days: 7
